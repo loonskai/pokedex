@@ -11,6 +11,8 @@ import (
 	pokecache "github.com/loonskai/pokedexcli/internal/pokecache"
 )
 
+const API_BASEURL = "https://pokeapi.co/api/v2/"
+
 type PokeapiClient struct {
 	prev  *string
 	next  *string
@@ -50,16 +52,31 @@ func (client *PokeapiClient) GetPrev() (*APIPageResponseBody, error) {
 }
 
 func (client *PokeapiClient) GetFromLocationAreas(location string) (*APILocationAreasResponseBody, error) {
-	parsedUrl, err := url.Parse("https://pokeapi.co/api/v2/location-area/" + location)
+	parsedUrl, err := url.Parse(API_BASEURL + "location-area/" + location)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(parsedUrl.String())
 	body, err := client.getBody(parsedUrl.String())
 	if err != nil {
 		return nil, err
 	}
 	parsedBody, err := client.parseLocationBody(body)
+	if err != nil {
+		return nil, err
+	}
+	return parsedBody, nil
+}
+
+func (client *PokeapiClient) GetPokemonByName(name string) (*APIPokemonByNameResponseBody, error) {
+	parsedUrl, err := url.Parse(API_BASEURL + "pokemon/" + name)
+	if err != nil {
+		return nil, err
+	}
+	body, err := client.getBody(parsedUrl.String())
+	if err != nil {
+		return nil, err
+	}
+	parsedBody, err := client.parsePokemonByNameBody(body)
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +107,15 @@ func (client *PokeapiClient) parsePageBody(body []byte) (*APIPageResponseBody, e
 
 func (client *PokeapiClient) parseLocationBody(body []byte) (*APILocationAreasResponseBody, error) {
 	parsedBody := APILocationAreasResponseBody{}
+	err := json.Unmarshal(body, &parsedBody)
+	if err != nil {
+		return nil, err
+	}
+	return &parsedBody, nil
+}
+
+func (client *PokeapiClient) parsePokemonByNameBody(body []byte) (*APIPokemonByNameResponseBody, error) {
+	parsedBody := APIPokemonByNameResponseBody{}
 	err := json.Unmarshal(body, &parsedBody)
 	if err != nil {
 		return nil, err
@@ -171,6 +197,28 @@ type APIEncounterDetailsItem struct {
 type APIEncounterMethodItem struct {
 	Name string `json:"name"`
 	Url  string `json:"url"`
+}
+
+type APIPokemonByNameResponseBody struct {
+	Name           string `json:"name"`
+	BaseExperience int    `json:"base_experience"`
+	Height         int    `json:"height"`
+	Weight         int    `json:"weight"`
+	Stats          []struct {
+		BaseStat int `json:"base_stat"`
+		Effort   int `json:"effort"`
+		Stat     struct {
+			Name string `json:"name"`
+			URL  string `json:"url"`
+		} `json:"stat"`
+	} `json:"stats"`
+	Types []struct {
+		Slot int `json:"slot"`
+		Type struct {
+			Name string `json:"name"`
+			URL  string `json:"url"`
+		} `json:"type"`
+	} `json:"types"`
 }
 
 func Init(offset int) PokeapiClient {
